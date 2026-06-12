@@ -1,8 +1,8 @@
 import os
 import random
+from functools import partial
 from pathlib import Path
 from typing import Tuple, Dict, Optional
-
 import cv2
 import numpy as np
 import torch
@@ -22,13 +22,12 @@ class PlantDiseaseDataset(Dataset):
         ])
         self.class_to_idx = {cls: idx for idx, cls in enumerate(self.classes)}
 
-        # Sakupi sve slike
         self.samples = []
         valid_ext = {".jpg", ".jpeg", ".png", ".bmp", ".JPG"}
         for cls_name in self.classes:
             cls_dir = self.root_dir / cls_name
             cls_idx = self.class_to_idx[cls_name]
-            for img_path in cls_dir.iterdir():
+            for img_path in sorted(cls_dir.iterdir()):   # <-- sorted() dodan
                 if img_path.suffix in valid_ext:
                     self.samples.append((str(img_path), cls_idx))
 
@@ -63,20 +62,24 @@ class PlantDiseaseDataset(Dataset):
         return torch.FloatTensor(weights)
 
 
-def create_weighted_sampler(dataset: PlantDiseaseDataset) -> WeightedRandomSampler:
+def create_weighted_sampler(dataset: PlantDiseaseDataset, seed: int = 42) -> WeightedRandomSampler:
     labels = dataset.get_labels()
     class_counts = np.bincount(labels, minlength=len(dataset.classes))
     sample_weights = 1.0 / (class_counts[labels] + 1e-6)
     sample_weights = torch.DoubleTensor(sample_weights)
 
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+
     return WeightedRandomSampler(
         weights=sample_weights,
         num_samples=len(sample_weights),
         replacement=True,
-    )   # Ublazava efekat imbalance tako sto ce vise puta uzeti uzorke iz manjih klasa
+        generator=generator,
+    )
 
 
-def worker_init_fn(worker_id: int, seed: int = 42):
+def _worker_init_fn(worker_id: int, seed: int = 42):
     """Initialize random seeds for DataLoader workers (CRITICAL for determinism)."""
     worker_seed = seed + worker_id
     random.seed(worker_seed)
@@ -110,11 +113,13 @@ def create_dataloaders(
     train_dataset = PlantDiseaseDataset(train_dir, transform=train_transform)
     valid_dataset = PlantDiseaseDataset(valid_dir, transform=valid_transform)
 
+    init_fn = partial(_worker_init_fn, seed=seed) if num_workers > 0 else None
+
     # Sampler za balansiranje
     train_sampler = None
     train_shuffle = True
     if use_weighted_sampling:
-        train_sampler = create_weighted_sampler(train_dataset)
+        train_sampler = create_weighted_sampler(train_dataset, seed=seed)
         train_shuffle = False
 
     loaders = {
@@ -128,7 +133,7 @@ def create_dataloaders(
             prefetch_factor=prefetch_factor if num_workers > 0 else None,
             persistent_workers=persistent_workers,
             drop_last=drop_last,
-            worker_init_fn=lambda wid: worker_init_fn(wid, seed=seed) if num_workers > 0 else None,
+            worker_init_fn=init_fn,
         ),
         "valid": DataLoader(
             valid_dataset,
@@ -138,7 +143,7 @@ def create_dataloaders(
             pin_memory=pin_memory,
             prefetch_factor=prefetch_factor if num_workers > 0 else None,
             persistent_workers=persistent_workers,
-            worker_init_fn=lambda wid: worker_init_fn(wid, seed=seed) if num_workers > 0 else None,
+            worker_init_fn=init_fn,
         ),
     }
 
@@ -150,7 +155,7 @@ def create_dataloaders(
             shuffle=False,
             num_workers=num_workers,
             pin_memory=pin_memory,
-            worker_init_fn=lambda wid: worker_init_fn(wid, seed=seed) if num_workers > 0 else None,
+            worker_init_fn=init_fn,
         )
 
     return loaders
