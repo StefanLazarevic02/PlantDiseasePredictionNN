@@ -2,7 +2,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 
-def get_train_transforms(config: dict, policy: str = None) -> A.Compose:
+def get_train_transforms(config: dict, policy: str = None, seed: int = 42) -> A.Compose:
     aug_config = config.get("augmentation", {})
     if policy is None:
         policy = aug_config.get("policy", "medium")
@@ -27,7 +27,7 @@ def get_train_transforms(config: dict, policy: str = None) -> A.Compose:
             ),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
-        ])
+        ], seed = seed)
 
     elif policy == "medium":
         return A.Compose([
@@ -50,7 +50,7 @@ def get_train_transforms(config: dict, policy: str = None) -> A.Compose:
             ),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
-        ])
+        ], seed = seed)
 
     elif policy == "strong":
         return A.Compose([
@@ -79,14 +79,14 @@ def get_train_transforms(config: dict, policy: str = None) -> A.Compose:
             ),
             A.Normalize(mean=mean, std=std),
             ToTensorV2(),
-        ])
+        ], seed = seed)
 
     else:
         # Default: medium
-        return get_train_transforms(config, policy="medium")
+        return get_train_transforms(config, policy="medium", seed = seed)
 
 
-def get_valid_transforms(config: dict) -> A.Compose:
+def get_valid_transforms(config: dict, seed: int = 42) -> A.Compose:
     ds_cfg = config.get("dataset", {})
     prep_cfg = config.get("preprocessing", {})
 
@@ -98,4 +98,4 @@ def get_valid_transforms(config: dict) -> A.Compose:
         A.Resize(input_size, input_size),
         A.Normalize(mean=mean, std=std),
         ToTensorV2(),
-    ])
+    ], seed = seed)
