@@ -1,4 +1,5 @@
 import os
+import random
 from pathlib import Path
 from typing import Tuple, Dict, Optional
 
@@ -75,11 +76,20 @@ def create_weighted_sampler(dataset: PlantDiseaseDataset) -> WeightedRandomSampl
     )   # Ublazava efekat imbalance tako sto ce vise puta uzeti uzorke iz manjih klasa
 
 
+def worker_init_fn(worker_id: int, seed: int = 42):
+    """Initialize random seeds for DataLoader workers (CRITICAL for determinism)."""
+    worker_seed = seed + worker_id
+    random.seed(worker_seed)
+    np.random.seed(worker_seed)
+    torch.manual_seed(worker_seed)
+
+
 def create_dataloaders(
     config: dict,
     train_transform: A.Compose,
     valid_transform: A.Compose,
     use_weighted_sampling: bool = True,
+    seed: int = 42,
 ) -> Dict[str, DataLoader]:
 
     ds_cfg = config.get("dataset", {})
@@ -118,6 +128,7 @@ def create_dataloaders(
             prefetch_factor=prefetch_factor if num_workers > 0 else None,
             persistent_workers=persistent_workers,
             drop_last=drop_last,
+            worker_init_fn=lambda wid: worker_init_fn(wid, seed=seed) if num_workers > 0 else None,
         ),
         "valid": DataLoader(
             valid_dataset,
@@ -127,6 +138,7 @@ def create_dataloaders(
             pin_memory=pin_memory,
             prefetch_factor=prefetch_factor if num_workers > 0 else None,
             persistent_workers=persistent_workers,
+            worker_init_fn=lambda wid: worker_init_fn(wid, seed=seed) if num_workers > 0 else None,
         ),
     }
 
@@ -138,6 +150,7 @@ def create_dataloaders(
             shuffle=False,
             num_workers=num_workers,
             pin_memory=pin_memory,
+            worker_init_fn=lambda wid: worker_init_fn(wid, seed=seed) if num_workers > 0 else None,
         )
 
     return loaders
