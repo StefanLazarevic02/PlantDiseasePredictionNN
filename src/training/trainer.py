@@ -72,12 +72,15 @@ class Trainer:
         return state
 
     def _set_rng_state(self, state: dict):
-        """Vrati RNG state na sacuvano stanje (koristi se pri resume-u)."""
+        """Vrati RNG state na sacuvano stanje (koristi se pri resume-u).
+        """
         random.setstate(state['python_random'])
         np.random.set_state(state['numpy'])
-        torch.set_rng_state(state['torch_cpu'])
+        # torch_cpu mora biti na CPU-u bez obzira na map_location
+        torch.set_rng_state(state['torch_cpu'].cpu())
         if torch.cuda.is_available() and 'torch_cuda' in state:
-            torch.cuda.set_rng_state(state['torch_cuda'])
+            # torch_cuda mora biti na trenutnom CUDA uredjaju
+            torch.cuda.set_rng_state(state['torch_cuda'].cuda())
 
     def _save_checkpoint(self, path: Path, epoch: int, is_best: bool = False):
         payload = {
