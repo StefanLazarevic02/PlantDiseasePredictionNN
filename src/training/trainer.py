@@ -114,7 +114,7 @@ class Trainer:
         # Vrati RNG state za reproduktivan resume
         if 'rng_state' in ckpt:
             self._set_rng_state(ckpt['rng_state'])
-            print("  ✓ RNG state restored for reproducible resume")
+            print("RNG state restored for reproducible resume")
 
         start_epoch = ckpt['epoch'] + 1
         print(f"Resuming training from epoch {start_epoch + 1}/{self.epochs} (best_acc={self.best_acc:.2f}%)")
