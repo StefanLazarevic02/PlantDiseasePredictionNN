@@ -76,11 +76,9 @@ class Trainer:
         """
         random.setstate(state['python_random'])
         np.random.set_state(state['numpy'])
-        # torch_cpu mora biti na CPU-u bez obzira na map_location
         torch.set_rng_state(state['torch_cpu'].cpu())
         if torch.cuda.is_available() and 'torch_cuda' in state:
-            # torch_cuda mora biti na trenutnom CUDA uredjaju
-            torch.cuda.set_rng_state(state['torch_cuda'].cuda())
+            torch.cuda.set_rng_state(state['torch_cuda'].cpu())
 
     def _save_checkpoint(self, path: Path, epoch: int, is_best: bool = False):
         payload = {
