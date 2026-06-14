@@ -30,8 +30,8 @@ def set_seed(seed: int = 42):
     torch.backends.cudnn.benchmark = False
 
     try:
-        torch.use_deterministic_algorithms(True, warn_only=False)
-    except RuntimeError:
+        torch.use_deterministic_algorithms(True, warn_only=True)
+    except TypeError:
         # Starije verzije PyTorcha ne podrzavaju warn_only parametar
         torch.use_deterministic_algorithms(True)
 
@@ -42,6 +42,6 @@ def set_seed(seed: int = 42):
     print(f"  - PYTHONHASHSEED: {os.environ['PYTHONHASHSEED']}")
     print(f"  - torch.backends.cudnn.deterministic: {torch.backends.cudnn.deterministic}")
     print(f"  - torch.backends.cudnn.benchmark: {torch.backends.cudnn.benchmark}")
-    print(f"  - torch.use_deterministic_algorithms: True")
+    print(f"  - torch.use_deterministic_algorithms: True (warn_only=True)")
     print(f"  - Albumentations seed: {seed}")
     print(f"  - CUBLAS_WORKSPACE_CONFIG: {os.environ['CUBLAS_WORKSPACE_CONFIG']}")
